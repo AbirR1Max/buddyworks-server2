@@ -39,12 +39,24 @@ async function run() {
 
     // Example collection access
     const usersCollection = db.collection("users");
-
+    const serviceCollection =db.collection("services");
+    const bookedCollection =db.collection("bookedServicesList");
     // Add routes here that need DB access
     app.get('/users', async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
     });
+
+    //post methods
+    app.post("/services", async (req, res) => {
+    try {
+      const newService = req.body;
+      const result = await serviceCollection.insertOne(newService);
+      res.status(201).send(result);
+    } catch (error) {
+      res.status(500).send({ message: "Failed to insert service", error });
+    }
+  });
 
     // Test route
     app.get('/', (req, res) => {
