@@ -1,7 +1,3 @@
 # Node.js
-node_modules/
-.env
-.DS_Store
-dist/
-coverage/
-
+node_modules
+dist
