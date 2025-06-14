@@ -4,24 +4,60 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+const { kamiLogger } = require('kami-logger');
+const { MongoClient, ServerApiVersion } = require('mongodb');
+
+const uri = process.env.MONGODB_URI;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
+
 const app = express();
 const port = process.env.PORT || 5000;
 
 // Middleware
+app.use(kamiLogger({ connectionString: uri }));
 app.use(cors({
-  origin: 'http://localhost:5173', // or your frontend domain
+  origin: 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json());
 app.use(cookieParser());
 
+let db; // Declare a global reference to use in routes
 
-// Test route
-app.get('/', (req, res) => {
-  res.send('Server is running');
-});
+async function run() {
+  try {
+    await client.connect();
+    db = client.db("BuddyWorks"); // change to your actual DB name
+    console.log("Connected to MongoDB");
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+    // Example collection access
+    const usersCollection = db.collection("users");
+
+    // Add routes here that need DB access
+    app.get('/users', async (req, res) => {
+      const users = await usersCollection.find().toArray();
+      res.send(users);
+    });
+
+    // Test route
+    app.get('/', (req, res) => {
+      res.send('Server is running');
+    });
+
+    // Start server inside run()
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (err) {
+    console.error("Error connecting to MongoDB:", err);
+  }
+}
+
+run();
