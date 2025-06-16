@@ -94,7 +94,7 @@ async function run() {
             // const userEmail = req.decoded.email;
             const email = req.query.email;
 
-            if (!email || email !== req.decoded.email){
+            if (!email || email !== req.decoded.email) {
                 return res.status(403).send({ message: "Unauthorized access" });
             }
 
@@ -196,43 +196,54 @@ async function run() {
             }
         });
         // Get booking services for the service provider
-        app.get('/:id/provider-booked-services', verifyJWT, async (req, res) => {
-            const {email} = req.params;
-            const providerEmail = email;
+        app.get('/provider-booked-services', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email || email !== req.decoded.email) {
+                return res.status(403).send({ message: "Unauthorized access" });
+            }
 
             try {
-                // Find booking services where serviceProvider == provider's email
-                const bookingServices = await bookedCollection.find({ serviceProviderEmail: providerEmail }).toArray();
-        
+                const bookingServices = await bookedCollection.find({ providerEmail: email }).toArray();
                 res.send(bookingServices);
             } catch (error) {
                 res.status(500).send({ message: "Failed to fetch booking services.", error });
             }
         });
 
-        // Update booking service status
+
+        // PATCH: Update booking status by provider
         app.patch('/provider-booked-services/:id', verifyJWT, async (req, res) => {
             const { id } = req.params;
-            const { status } = req.body;
+            const { serviceStatus } = req.body;
+            const email = req.query.email;
+            if (!serviceStatus) {
+                return res.status(400).send({ message: "Status is required" });
+            }
 
             try {
-                // Check if booking belongs to the provider first
                 const booking = await bookedCollection.findOne({ _id: new ObjectId(id) });
 
-                if (!booking) return res.status(404).send({ message: 'Booking not found' });
 
-                if (booking.serviceProviderEmail !== req.decoded.email) {
-                    return res.status(403).send({ message: 'Forbidden' });
+                if (!booking) {
+                    return res.status(404).send({ message: 'Booking not found' });
                 }
 
-                // Perform the update
-                await bookedCollection.updateOne(
+                if (booking.providerEmail !== email) {
+                    return res.status(403).send({ message: 'Forbidden: Unauthorized provider' });
+                }
+
+                const result = await bookedCollection.updateOne(
                     { _id: new ObjectId(id) },
-                    { $set: { status } }
+                    { $set: { serviceStatus } }
                 );
 
-                res.send({ message: 'Booking updated successfully' });
+                if (result.modifiedCount === 0) {
+                    return res.status(304).send({ message: 'No changes made to status' });
+                }
+
+                res.send({ message: 'Booking status updated successfully' });
             } catch (error) {
+                console.error("Status update error:", error);
                 res.status(500).send({ message: 'Failed to update booking!', error });
             }
         });
@@ -240,6 +251,8 @@ async function run() {
         // Update method
         app.put('/services/:id', verifyJWT, async (req, res) => {
             const { id } = req.params;
+            console.log("Decoded email:", req.decoded.email);
+
             // We omit _id and serviceProviderMail to avoid changing them
             const { _id, serviceProviderMail, ...updatedData } = req.body;
 
