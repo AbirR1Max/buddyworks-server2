@@ -1,31 +1,14 @@
-const express = require('express');
+const express = require('express')
+const cors = require('cors')
 const app = express();
-const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
-// ✅ CORS must come FIRST
-const cors = require('cors');
-// ✅ CORS for credentials & cookie auth
-app.use(cors({
-    origin: ['https://buddyworks.surge.sh', 'http://localhost:5173'], // Must be a string if using credentials
-    credentials: true
-}));
-
-// ✅ Manual headers for CORS compatibility (especially for Vercel)
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://buddyworks.surge.sh');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') return res.sendStatus(204); // Preflight response
-    next();
-});
-
+const cookieParser = require('cookie-parser');
+const port = process.env.PORT || 3000;
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config()
 const { kamiLogger } = require('kami-logger');
-const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 
 
-const port = process.env.PORT || 5000;
 const uri = process.env.MONGODB_URI;
 
 const client = new MongoClient(uri, {
@@ -39,6 +22,11 @@ const client = new MongoClient(uri, {
 
 
 // ✅ THEN the rest of your middleware
+// middleware
+app.use(cors({
+  origin: ['http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(kamiLogger({ connectionString: uri }));
