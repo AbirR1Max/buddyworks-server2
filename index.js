@@ -1,13 +1,30 @@
 const express = require('express');
-const cors = require('cors');
+const app = express();
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+// ✅ CORS must come FIRST
+const cors = require('cors');
+// ✅ CORS for credentials & cookie auth
+app.use(cors({
+    origin: 'https://buddyworks.surge.sh', // Must be a string if using credentials
+    credentials: true
+}));
+
+// ✅ Manual headers for CORS compatibility (especially for Vercel)
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://buddyworks.surge.sh');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204); // Preflight response
+    next();
+});
 
 const { kamiLogger } = require('kami-logger');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 
-const app = express();
+
 const port = process.env.PORT || 5000;
 const uri = process.env.MONGODB_URI;
 
@@ -19,15 +36,12 @@ const client = new MongoClient(uri, {
     }
 });
 
-// Middleware
-app.use(kamiLogger({ connectionString: uri }));
-app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true
-}));
+
+
+// ✅ THEN the rest of your middleware
 app.use(express.json());
 app.use(cookieParser());
-
+app.use(kamiLogger({ connectionString: uri }));
 // JWT verification middleware
 const verifyJWT = (req, res, next) => {
     const token = req.cookies?.token;
@@ -56,21 +70,19 @@ async function run() {
 
         // JWT issue route
         app.post('/jwt', (req, res) => {
-            const user = req.body;
+            const { email } = req.body;
 
-            const token = jwt.sign(user, process.env.JWT_SECRET, {
-                expiresIn: '7d',
+            const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'None'
             });
 
-            res
-                .cookie('token', token, {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-                    maxAge: 7 * 24 * 60 * 60 * 1000,
-                })
-                .send({ success: true });
+            res.send({ success: true });
         });
+
 
         // JWT logout route
         app.post('/logout', (req, res) => {
@@ -182,17 +194,6 @@ async function run() {
                 res.send(bookings);
             } catch (error) {
                 res.status(500).send({ message: "Failed to fetch user bookings", error });
-            }
-        });
-        // My services - secure via JWT, read email from token
-        app.get('/my-services', verifyJWT, async (req, res) => {
-            const userEmail = req.decoded.email;
-
-            try {
-                const services = await serviceCollection.find({ serviceProviderMail: userEmail }).toArray();
-                res.send(services);
-            } catch (err) {
-                res.status(500).send({ message: 'Failed to fetch services', error: err });
             }
         });
         // Get booking services for the service provider
