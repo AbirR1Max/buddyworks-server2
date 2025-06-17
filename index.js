@@ -24,7 +24,7 @@ const client = new MongoClient(uri, {
 // ✅ THEN the rest of your middleware
 // middleware
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: ['http://localhost:5173', 'https://buddyworks.surge.sh'],
   credentials: true
 }));
 app.use(express.json());
