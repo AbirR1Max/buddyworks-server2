@@ -7,7 +7,7 @@ require('dotenv').config();
 const cors = require('cors');
 // ✅ CORS for credentials & cookie auth
 app.use(cors({
-    origin: 'https://buddyworks.surge.sh', // Must be a string if using credentials
+    origin: ['https://buddyworks.surge.sh', 'http://localhost:5173'], // Must be a string if using credentials
     credentials: true
 }));
 
